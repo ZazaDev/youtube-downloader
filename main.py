@@ -1,4 +1,3 @@
-from main_ref import download
 import pytube
 from typing import Callable, List, Tuple
 from tkinter import *
