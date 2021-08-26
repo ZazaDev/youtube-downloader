@@ -84,30 +84,6 @@ class Downloader:
         print(f'{title}:\n\t{stream}')
         stream.download(title)
 
-
-#TODO: Imbelezar
-def search(event: Event):
-    URL = event.widget.get()
-
-    try:
-        video = pytube.YouTube(URL)
-    except:
-        print("Invalid URL")
-        return
-    streams = video.streams.filter(mime_type="video/mp4")
-
-    frame_name = event.widget.winfo_parent()
-    frame = event.widget._nametowidget(frame_name)
-
-    for child in frame.winfo_children():
-        if isinstance(child, Button):
-            print(child['text'])
-            res = child['text'].split(' ')[-1]
-            if(not streams.filter(res=res)):
-                child.grid_remove()
-            else:
-                child.grid()
-
 def main():
     gui = GUI("YouTube Downloader by Neonzada", "500x200")
     downloader = Downloader()
