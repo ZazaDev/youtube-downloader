@@ -1,5 +1,6 @@
+from main_ref import download
 import pytube
-from typing import Callable, List
+from typing import Callable, List, Tuple
 from tkinter import *
 
 class GUI:
@@ -46,29 +47,71 @@ class GUI:
 
     def setSearch(self, hooks: List[str], fun: Callable):
         for hook in hooks:
-            self.url_field.bind(hook, lambda event, x=self.url_field: fun(event, x))
+            self.url_field.bind(hook, fun)
 
 
 class Downloader:
     def __init__(self) -> None:
-        pass
+        self.stream    : List[pytube.Stream] = []
+        self.relations : List[Tuple]         = []
 
-    def search(event: Event, caller: Entry):
-        url = caller.get()
+    def search(self, event: Event):
+        URL = event.widget.get()
+
         try:
-            pytube.YouTube(url)
+            video = pytube.YouTube(URL)
         except:
             print("Invalid URL")
             return
-        
 
-def search(event: Event, caller: Entry):
-    print(caller.get())
+        self.streams = video.streams.filter(mime_type="video/mp4")
 
+        frame_name = event.widget.winfo_parent()
+        frame = event.widget._nametowidget(frame_name)
+
+        for child in frame.winfo_children():
+            if isinstance(child, Button):
+                print(child['text'])
+                res = child['text'].split(' ')[-1]
+                streams = self.streams.filter(res=res)
+                if(not streams):
+                    child.grid_remove()
+                else:
+                    child.grid()
+                    child['command'] = lambda x=streams.first(), y=video.title: self.download(x, y)
+
+    def download(self, stream: pytube.Stream, title: str):
+        print(f'{title}:\n\t{stream}')
+        stream.download(title)
+
+
+#TODO: Imbelezar
+def search(event: Event):
+    URL = event.widget.get()
+
+    try:
+        video = pytube.YouTube(URL)
+    except:
+        print("Invalid URL")
+        return
+    streams = video.streams.filter(mime_type="video/mp4")
+
+    frame_name = event.widget.winfo_parent()
+    frame = event.widget._nametowidget(frame_name)
+
+    for child in frame.winfo_children():
+        if isinstance(child, Button):
+            print(child['text'])
+            res = child['text'].split(' ')[-1]
+            if(not streams.filter(res=res)):
+                child.grid_remove()
+            else:
+                child.grid()
 
 def main():
     gui = GUI("YouTube Downloader by Neonzada", "500x200")
-    gui.setSearch(["<KP_Enter>", "<Return>"], search)
+    downloader = Downloader()
+    gui.setSearch(["<KP_Enter>", "<Return>"], downloader.search)
     gui.start()
 
 if __name__ == '__main__':
