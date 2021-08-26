@@ -4,7 +4,6 @@ import tkinter as Tk
 from tkinter.constants import CENTER
 from typing import List
 from PIL import ImageTk, Image
-from os import getcwd
 
 class GUI:
     def __init__(self, title: str, geometry: str) -> None:
@@ -13,26 +12,27 @@ class GUI:
         self.root.geometry(geometry)
 
         self.header = Tk.Frame(self.root, bg=self._fromRGB((115,155,155)))
-        self.header = self.header.place(relx=0, rely=0, relwidth=1, relheight=0.15) 
+        self.header.place(relx=0, rely=0, relwidth=1, relheight=0.10) 
 
         self.side_bar = Tk.Frame(self.root, bg=self._fromRGB((255,0,0)))
-        self.side_bar.place(relx=0, rely=0.15, relwidth=0.2, relheight=1)
+        self.side_bar.place(relx=0, rely=self.header.place_info()['relheight'], relwidth=0.2, relheight=1)
 
         self.render_view = Tk.Frame(self.root, bg=self._fromRGB((0,0,255)))
         render_x = self.side_bar.place_info()['relwidth']
-        self.render_view.place(relx=render_x, rely=0.15, relwidth=str(1.0-float(render_x)), relheight=1)
+        self.render_view.place(relx=render_x, rely=self.header.place_info()['relheight'], relwidth=str(1.0-float(render_x)), relheight=1)
 
-        self.menu_field = Tk.Frame(self.header, bg=self._fromRGB((0,255,0)))
-        self.menu_field.place(relx=0, rely=0, relwidth=0.2, relheight=0.15)
+        self.menu_field = Tk.Frame(self.header, bg=self._fromRGB((50,12,15)))
+        self.menu_field.place(relx=0, rely=0, relwidth=0.20, relheight=1)
 
-        self.url_field = Tk.Frame(self.header, bg=self._fromRGB((50,12,15)))
-        self.url_field.place(relx=0.2, rely=0, relwidth=0.8, relheight=0.15)
+        self.url_field = Tk.Frame(self.header, bg=self.menu_field['bg'])
+        width = self.menu_field.place_info()['relwidth']
+        self.url_field.place(relx=width, rely=0, relwidth=1.0-float(width), relheight=1)
 
         self.url_query = Tk.Entry(self.url_field)
         self.url_query.place(relx=0.15, rely=0.4, relwidth=0.6, relheight=0.25)
 
-        self.menu_icon = self._Icon(Tk.Canvas(self.menu_field, bg=self.menu_field['bg'], highlightthickness=0, relief='ridge'), ImageTk.PhotoImage(Image.open("./source/GUI/assets/menu_icon90px.png")))
-        self.menu_icon.canvas.place(relx=0.1, rely=0.1, relwidth=0.8, relheight=0.8)
+        self.menu_icon = self._Icon(Tk.Canvas(self.menu_field, bg=self._fromRGB((0,255,0)), highlightthickness=0, relief='ridge'), ImageTk.PhotoImage(Image.open("./source/GUI/assets/menu_icon90px.png")))
+        self.menu_icon.canvas.place(relx=0, rely=0, relwidth=0.5, relheight=1)
         self.menu_icon.canvas.bind("<Configure>", lambda event, x=self.menu_icon: self._resizeIcons(event, x))
         self.menu_icon.canvas.bind("<Enter>", self._expandMenu)
         self.menu_icon.canvas.bind("<Leave>", self._shrinkMenu)
@@ -58,11 +58,8 @@ class GUI:
         self.side_bar.place_configure(relwidth=0.2)
 
     def _resizeIcons(self, event: Tk.Event, icon: GUI._Icon):
-        print(event)
         box = icon.canvas.bbox(icon.ids[0])
-        print(box)
         width, height = (box[2] - box[0], box[3] - box[1])
-        print(width, height)
         icon.canvas.moveto(icon.ids[0], (event.width - width) // 2, (event.height - height) // 2)
 
     def _fromRGB(self, rgb: tuple) -> str:
