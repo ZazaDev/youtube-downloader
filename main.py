@@ -1,93 +1,75 @@
-#TODO: rename files with their respective quality after the video title, like "videotitle_1080p.mp4"
-#Generally improve this trash code I made on a hurry :p
-
 import pytube
-
-#import os
-
+from typing import Callable, List
 from tkinter import *
 
-root = Tk()
-root.title("YouTube Downloader by neonzada")
-root.geometry("500x200")
+class GUI:
+    def __init__(self, title: str, geometry: str) -> None:
+        self.root = Tk()
+        self.root.title(title)
+        self.root.geometry(geometry)
 
-#Gets URL from the text box then downloads it
-def download1080():
-    url = urlEntry.get()
-    yt = pytube.YouTube(url)
-    video = yt.streams.filter(res="1080p").first().download()
+        self.header = Label(self.root, text="YouTube Downloader", fg="red", font=("Calibri", 15))
+        self.header.pack(fill=X)
+        
+        #URL Input Frame
+        self.frame = Frame(self.root)
+        self.frame.place(x=100, y=30)
 
-    #os.rename(video,"1080.mp4")
+        self.urlText = Label(self.frame, text = "Enter URL", font=('Calibri', 12))
+        self.urlText.grid(row=0, column=0)
 
-    video.download('')
+        self.urlWarn = Label(self.frame, text = "360p/720p for Whatsapp", fg="red", font=('Calibri', 10))
+        self.urlWarn.grid(row=5, columnspan=2)
 
-def download720():
-    url = urlEntry.get()
-    yt = pytube.YouTube(url)
-    video = yt.streams.filter(res="720p").first().download()
-    video.download('')
+        self.url_field = Entry(self.frame, font=('Calibri', 15))
+        self.url_field.grid(row=0, column=1, pady=20)
 
-def download480():
-    url = urlEntry.get()
-    yt = pytube.YouTube(url)
-    video = yt.streams.filter(res="480p").first().download()
-    video.download('')
 
-def download360():
-    url = urlEntry.get()
-    yt = pytube.YouTube(url)
-    video = yt.streams.filter(res="360p").first().download()
-    video.download('')
+        #Resolutions Buttons
+        resolutions = ["1080p", "720p", "480p", "360p", "240p", "144p"]
+        self.btns = [Button(self.frame, text=f"Download {res}") for res in resolutions]
 
-def download240():
-    url = urlEntry.get()
-    yt = pytube.YouTube(url)
-    video = yt.streams.filter(res="240p").first().download()
-    video.download('')
+        for (index, btn) in enumerate(self.btns):
+            print(btn['text'])
+            if index < 3:
+                btn.grid(row=index%3+1, columnspan=1)
+            else:
+                btn.grid(row=index%3+1, columnspan=2)
+    
+    def start(self):
+        self.root.mainloop()
 
-def download144():
-    url = urlEntry.get()
-    yt = pytube.YouTube(url)
-    video = yt.streams.filter(res="144p").first().download()
-    video.download('')
+    def setBtnFunc(self, func: Callable) -> None:
+        for btn in self.btns:
+            string = btn['text'].split(' ')[-1]
+            btn.configure(command=lambda x=string: func(x))
 
-#GUI stuff
+    def setSearch(self, hooks: List[str], fun: Callable):
+        for hook in hooks:
+            self.url_field.bind(hook, lambda event, x=self.url_field: fun(event, x))
 
-#Header
-head = Label(root, text="YouTube Downloader", fg="red", font=("Calibri", 15))
-head.pack(fill=X)
 
-#URL stuff
-holder = Frame(root)
-holder.place(x=100, y=30)
+class Downloader:
+    def __init__(self) -> None:
+        pass
 
-urlText = Label(holder, text = "Enter URL", font=('Calibri', 12))
-urlText.grid(row=0, column=0)
+    def search(event: Event, caller: Entry):
+        url = caller.get()
+        try:
+            pytube.YouTube(url)
+        except:
+            print("Invalid URL")
+            return
+        
 
-urlEntry = Entry(holder, font=('Calibri', 15))
-urlEntry.grid(row=0, column=1, pady=20)
+def search(event: Event, caller: Entry):
+    print(caller.get())
 
-urlWarn = Label(holder, text = "360p/720p for Whatsapp", fg="red", font=('Calibri', 10))
-urlWarn.grid(row=5, columnspan=2)
 
-#Buttons
+def main():
+    gui = GUI("YouTube Downloader by Neonzada", "500x200")
+    gui.setSearch(["<KP_Enter>", "<Return>"], search)
+    gui.start()
 
-btn = Button(holder, text="Download 1080p",command=download1080)
-btn.grid(row=1, columnspan=1)
-
-btn = Button(holder, text="Download 720p", command=download720)
-btn.grid(row=2, columnspan=1)
-
-btn = Button(holder, text="Download 480p",command=download480)
-btn.grid(row=3, columnspan=1)
-
-btn = Button(holder, text="Download 360p",command=download360)
-btn.grid(row=1, columnspan=2)
-
-btn = Button(holder, text="Download 240p",command=download240)
-btn.grid(row=2, columnspan=2)
-
-btn = Button(holder, text="Download 144p",command=download144)
-btn.grid(row=3, columnspan=2)
-
-root.mainloop()
+if __name__ == '__main__':
+    main()
