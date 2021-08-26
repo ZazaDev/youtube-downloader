@@ -3,38 +3,41 @@ from typing import Callable, List, Tuple
 from tkinter import *
 
 class GUI:
-    def __init__(self, title: str, geometry: str) -> None:
+    def __init__(self, title: str, geometry : str) -> None:
         self.root = Tk()
         self.root.title(title)
         self.root.geometry(geometry)
 
         self.header = Label(self.root, text="YouTube Downloader", fg="red", font=("Calibri", 15))
-        self.header.pack(fill=X)
+        self.header.pack(side=TOP)
         
-        #URL Input Frame
         self.frame = Frame(self.root)
-        self.frame.place(x=100, y=30)
+        self.frame.pack(side=TOP)
 
-        self.urlText = Label(self.frame, text = "Enter URL", font=('Calibri', 12))
-        self.urlText.grid(row=0, column=0)
+        # URL Input Frame
+        self.url_field = Frame(self.frame)
+        self.url_field.grid(row=1, column=1, columnspan=2)
 
-        self.urlWarn = Label(self.frame, text = "360p/720p for Whatsapp", fg="red", font=('Calibri', 10))
-        self.urlWarn.grid(row=5, columnspan=2)
+        self.url_label = Label(self.url_field, text = "Enter URL:", font=('Calibri', 12))
+        self.url_label.grid(row=1, column=1)
 
-        self.url_field = Entry(self.frame, font=('Calibri', 15))
-        self.url_field.grid(row=0, column=1, pady=20)
+        self.url_query = Entry(self.url_field, font=('Calibri', 15))
+        self.url_query.grid(row=2, column=1, pady=5)
 
 
-        #Resolutions Buttons
-        resolutions = ["1080p", "720p", "480p", "360p", "240p", "144p"]
-        self.btns = [Button(self.frame, text=f"Download {res}") for res in resolutions]
+        # Resolutions Buttons
+        self.res_field = Frame(self.frame, name="res_field")
+        print(str(self.res_field))
+        self.res_field.grid(row=2, column=1)
 
-        for (index, btn) in enumerate(self.btns):
-            print(btn['text'])
-            if index < 3:
-                btn.grid(row=index%3+1, columnspan=1)
-            else:
-                btn.grid(row=index%3+1, columnspan=2)
+        resolutions = ["1444p", "1080p", "720p", "480p", "360p", "240p", "144p"]
+        self.btns = [Button(self.res_field, text=f"Download {res}") for res in resolutions]
+
+        GUI.arrangeButton(self.btns)
+
+        # Bottom Text
+        self.url_warn = Label(self.frame, text = "360p/720p for Whatsapp", fg="red", font=('Calibri', 10))
+        self.url_warn.grid(row=3, columnspan=2)
     
     def start(self):
         self.root.mainloop()
@@ -44,9 +47,22 @@ class GUI:
             string = btn['text'].split(' ')[-1]
             btn.configure(command=lambda x=string: func(x))
 
-    def setSearch(self, hooks: List[str], fun: Callable):
+    def setSearch(self, hooks: List[str], fun: Callable) -> None:
         for hook in hooks:
-            self.url_field.bind(hook, fun)
+            self.url_query.bind(hook, fun)
+
+    @staticmethod
+    def arrangeButton(btns: List[Button]):
+        for (index, btn) in enumerate(btns):
+            print(btn['text'])
+            half_way = len(btns) // 2
+            if len(btns) % 2 == 1 and btn == btns[-1]:
+                btn.grid(row=half_way+1, column=1, columnspan=2, sticky='nesw')
+            elif index < half_way:
+                btn.grid(row=index%half_way+1, column=1, sticky='nesw')
+            else:
+                btn.grid(row=index%half_way+1, column=2, sticky='nesw')
+        
 
 
 class Downloader:
@@ -54,7 +70,11 @@ class Downloader:
         self.stream    : List[pytube.Stream] = []
         self.relations : List[Tuple]         = []
 
-    def search(self, event: Event):
+    def __getParentWidget(self, widget: Widget) -> Widget:
+        parent_name = widget.winfo_parent()
+        return widget._nametowidget(parent_name)
+
+    def search(self, event: Event) -> None:
         URL = event.widget.get()
 
         try:
@@ -65,26 +85,28 @@ class Downloader:
 
         self.streams = video.streams.filter(mime_type="video/mp4")
 
-        frame_name = event.widget.winfo_parent()
-        frame = event.widget._nametowidget(frame_name)
+        frames = self.__getParentWidget(self.__getParentWidget(event.widget)).winfo_children()
+        frame = [frame for frame in frames if "res_field" in str(frame)][0]
 
         for child in frame.winfo_children():
             if isinstance(child, Button):
                 print(child['text'])
                 res = child['text'].split(' ')[-1]
                 streams = self.streams.filter(res=res)
+                print(streams)
                 if(not streams):
                     child.grid_remove()
                 else:
                     child.grid()
-                    child['command'] = lambda x=streams.first(), y=video.title: self.download(x, y)
+                    child['command'] = lambda x=streams.first(), y=f'{video.title}-{res}', z='mp4/': self.download(x, y, z)
 
-    def download(self, stream: pytube.Stream, title: str):
+    def download(self, stream: pytube.Stream, title: str, path: str) -> None:
         print(f'{title}:\n\t{stream}')
-        stream.download(title)
+        stream.download(filename=f'{title}.mp4', output_path=path)
 
-def main():
-    gui = GUI("YouTube Downloader by Neonzada", "500x200")
+
+def main() -> None:
+    gui = GUI("YouTube Downloader by Neonzada", "500x300")
     downloader = Downloader()
     gui.setSearch(["<KP_Enter>", "<Return>"], downloader.search)
     gui.start()
