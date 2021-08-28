@@ -14,14 +14,14 @@ class GUI:
         self.header = Tk.Frame(self.root, bg=self._fromRGB((115,155,155)))
         self.header.place(relx=0, rely=0, relwidth=1, relheight=0.10) 
 
-        self.side_bar = Tk.Frame(self.root, bg=self._fromRGB((255,0,0)))
+        self.side_bar = Tk.Frame(self.root, bg=self._fromRGB((100,0,0)))
         self.side_bar.place(relx=0, rely=self.header.place_info()['relheight'], relwidth=0.2, relheight=1)
 
-        self.render_view = Tk.Frame(self.root, bg=self._fromRGB((0,0,255)))
+        self.render_view = Tk.Frame(self.root, bg=self._fromRGB((0,0,0)))
         render_x = self.side_bar.place_info()['relwidth']
         self.render_view.place(relx=render_x, rely=self.header.place_info()['relheight'], relwidth=str(1.0-float(render_x)), relheight=1)
 
-        self.menu_field = Tk.Frame(self.header, bg=self._fromRGB((50,12,15)))
+        self.menu_field = Tk.Frame(self.header, bg=self._fromRGB((12,12,15)))
         self.menu_field.place(relx=0, rely=0, relwidth=0.20, relheight=1)
 
         self.url_field = Tk.Frame(self.header, bg=self.menu_field['bg'])
@@ -31,7 +31,7 @@ class GUI:
         self.url_query = Tk.Entry(self.url_field)
         self.url_query.place(relx=0.15, rely=0.4, relwidth=0.6, relheight=0.25)
 
-        self.menu_icon = self._Icon(Tk.Canvas(self.menu_field, bg=self._fromRGB((0,255,0)), highlightthickness=0, relief='ridge'), ImageTk.PhotoImage(Image.open("./source/GUI/assets/menu_icon90px.png")))
+        self.menu_icon = self._Icon(Tk.Canvas(self.menu_field, bg=self.side_bar['bg'], relief='ridge', highlightbackground=self.menu_field['bg'], highlightthickness=2), ImageTk.PhotoImage(Image.open("./source/GUI/assets/menu_icon90px.png")))
         self.menu_icon.canvas.place(relx=0, rely=0, relwidth=0.5, relheight=1)
         self.menu_icon.canvas.bind("<Configure>", lambda event, x=self.menu_icon: self._resizeIcons(event, x))
         self.menu_icon.canvas.bind("<Enter>", self._expandMenu)
