@@ -30,7 +30,7 @@ class GUI:
         print(str(self.res_field))
         self.res_field.grid(row=2, column=1)
 
-        resolutions = ["1444p", "1080p", "720p", "480p", "360p", "240p", "144p"]
+        resolutions = ["1440p", "1080p", "720p", "480p", "360p", "240p", "144p"]
         self.btns = [Button(self.res_field, text=f"Download {res}") for res in resolutions]
 
         GUI.arrangeButton(self.btns)
