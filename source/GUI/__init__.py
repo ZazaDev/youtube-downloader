@@ -1,2 +1,4 @@
 from GUI.definitions import *
-from GUI.home import Home
+
+from GUI.search import Search
+import GUI.list as list
