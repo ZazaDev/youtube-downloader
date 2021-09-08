@@ -1,6 +1,7 @@
 import pytube
 from typing import Callable, List, Tuple
 from tkinter import *
+from GUI.definitions import *
 
 class GUI:
     def __init__(self, title: str, geometry : str) -> None:
