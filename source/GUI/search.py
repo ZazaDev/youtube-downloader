@@ -1,4 +1,3 @@
-from re import search
 from tkinter.constants import *
 from GUI.definitions import *
 from GUI import list
