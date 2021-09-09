@@ -125,6 +125,11 @@ class UnorderedList(_List):
             print(f"\texpected: {rect}, actual: {self.bbox(rect_id)}")
             item.onUpdate(self, event)
 
+    def clear(self):
+        self.next_pos = Position(0,0)
+        self.items = []
+        self.delete('all')
+
 
 class OrderedList(_List):
     def __init__(self, master: Optional[Any], **kw) -> None:
@@ -162,6 +167,13 @@ class OrderedList(_List):
             self.coords(rect_id, rect.left, rect.top, rect.right, rect.bottom)
             print(f"\texpected: {rect}, actual: {self.bbox(rect_id)}")
             item.onUpdate(self, event)
+    
+    def clear(self):
+        self.item_dimensions = None
+        self.items = []
+        self.delete('all')
+
+
 
 def workul(ul, _):
     ul.addItem(_i(_))

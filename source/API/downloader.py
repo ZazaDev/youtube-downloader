@@ -1,21 +1,14 @@
-import multiprocessing
-from sys import argv
-from time import sleep
-from tkinter.constants import Y
-from pytube import query
-
-from pytube.contrib.playlist import Playlist
 from GUI.definitions import *
 from API.definitions import *
 import requests
 from io import BytesIO
 from PIL import ImageOps, ImageTk
 from time import time
-import asyncio
 
 import threading
 import pytube
 
+session = requests.Session()
 class Query(Enum):
     Playlist = 0
     Search   = 1
@@ -23,56 +16,40 @@ class Query(Enum):
 
 def elapsed_time(funcao):
     def wrapper(*args, **kw):
-        # Calcula o tempo de execução
         start = time()
         thread_name = funcao(*args, **kw)
         end = time()
 
-        # Formata a mensagem que será mostrada na tela
         print(f"{thread_name} took {end-start}s")
 
     return wrapper
 
-@dataclass
-class Video(Video):
-    title: str
-    views: int
-    publish_date: datetime
-    thumbnail: Union[TkImage, PILImage, None]
-    channel: Channel
-
-    def __init__(self, video: pytube.YouTube, res: Optional[ChannelIconRes] = ChannelIconRes.R_48P, **kw):
-        self.title = video.title
-        self.views = video.views
-        self.publish_date = video.publish_date
-        self.thumbnail = getImageFromURL(video.thumbnail_url, **kw)
-        self.channel = Channel(video, res)
-
-class Channel(Channel):
-    name: str
-    channel_icon: Union[TkImage, PILImage, None]
-
-    def __init__(self, video: pytube.YouTube, res: ChannelIconRes):
-        self.name = video.author
-        self.channel_icon = getImageFromURL(getIconUrl(video, res))
-
 _threads = []
 
-def populate(py_videos: List[pytube.YouTube], videos: List[Video], callback: Callable, count: int = -1, **kw):
+def populate(py_videos: List[pytube.YouTube], videos: List[Item], creator: object, callback: Callable[[Item], None], count: int = -1, **kw):
     if count == -1:
         count = len(py_videos)
     for i in range(count):
-        t = threading.Thread(name=py_videos[i].title, target=_populate, args=(py_videos[i], videos, callback), kwargs=kw)
+        t = threading.Thread(name=py_videos[i].title, target=_populate, args=(py_videos[i], videos, creator, callback), kwargs=kw)
         _threads.append(t)
         t.start()
     return "T"
 
-@elapsed_time
-def _populate(py_vid: pytube.YouTube, videos: List[Video], callback: Callable, **kw):
-    vid = Video(py_vid, **kw)
-    videos.append(vid)
-    name = threading.currentThread().name
-    callback(vid)
+def _populate(py_vid: pytube.YouTube, videos: List[Item], creator: object, callback: Callable[[Item], None], **kw):
+    import cProfile
+    import pstats
+
+    with cProfile.Profile() as pr:
+        name = threading.currentThread().name
+        try:
+            vid = creator(py_vid)
+        except:
+            return name
+        videos.append(vid)
+        callback(vid)
+    
+    stats = pstats.Stats(pr)
+    stats.sort_stats(pstats.SortKey.TIME)
     return name
 
 def parseURL(url: URL) -> PytubeObj:
@@ -83,8 +60,10 @@ def parseURL(url: URL) -> PytubeObj:
             return pytube.Playlist(url)
         else:
             return pytube.Search(url)
+    else:
+        raise RuntimeError("Url empty")
 
-def parseVideos(obj: PytubeObj) -> List[Video]:
+def parseVideos(obj: PytubeObj) -> List[Item]:
     if isinstance(obj, pytube.Search):
         return obj.results
     if isinstance(obj, pytube.YouTube):
@@ -96,9 +75,8 @@ def parseVideos(obj: PytubeObj) -> List[Video]:
         return vids
 
 def getMoreResults(search: pytube.Search):
-    if not isinstance(search, pytube.Search):
-        return
-    pytube.Search.get_next_results()
+    if isinstance(search, pytube.Search):
+        search.get_next_results()
 
 
 def getAspectRatio(img: Image.Image) -> float:
@@ -114,7 +92,7 @@ def getNewSize(img: Image.Image, resize: Porcentage):
     return (new_width, new_height)
 
 def getImageFromURL(url: URL, resize: Optional[Porcentage] = None, crop: Optional[Borders] = None) -> PILImage:
-    data = requests.get(url)
+    data = session.get(url)
     img = Image.open(BytesIO(data.content))
     if not crop is None:
         img = ImageOps.crop(img, crop)

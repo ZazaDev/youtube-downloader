@@ -53,7 +53,7 @@ class QueryEntry(tkinter.Frame):
         if not self._on_submit is None:
             self._on_submit(self.entry, event)
 
-    def setOnSubmit(self, callback: Callable):
+    def setOnSubmit(self, callback: Callable[[tkinter.Entry, tkinter.Event], None]):
         self._on_submit = callback
 
 

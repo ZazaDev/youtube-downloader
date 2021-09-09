@@ -126,51 +126,5 @@ class Item(ABC):
     def onUpdate(self, canvas: Canvas, event: Event) -> None:
         """Function that will be called on update in the parent canvas"""
 
-@dataclass
-class Video(Item):
-    title: str
-    views: int
-    publish_date: datetime
-    thumbnail: Union[TkImage, PILImage, None]
-    channel: Channel
-    _count: int = 0
-
-    def draw(self, canvas: Canvas, init_pos: Position) -> Ids:
-        _tag = f"vid{canvas.videos['Index']}"
-        canvas.videos['Index'] += 1
-
-        self.thumbnail = ImageTk.PhotoImage(self.thumbnail)
-        id: int = canvas.create_image(init_pos, tag=_tag, anchor=NW, image=self.thumbnail)
-
-        bbox: Box = Box(canvas.bbox(id))
-        font_size: int = 14
-        pos: Position = (bbox.right + 15, bbox.top + font_size // 2)
-        id = canvas.create_text(pos, tag=_tag, anchor=NW, text=self.title, fill='#FFFFFF', width=canvas.winfo_width()-bbox.right, font=("Arial", font_size))
-
-        bbox = Box(canvas.bbox(id))
-        pos = (bbox.left, bbox.bottom + 15)
-        self.channel.channel_icon = ImageTk.PhotoImage(self.channel.channel_icon)
-        id = canvas.create_image(pos, anchor=NW, image=self.channel.channel_icon)
-
-        bbox = Box(canvas.bbox(id))
-        font_size = 12
-        pos = (bbox.right + 10, bbox.top + ((bbox.bottom - bbox.top) // 2) - font_size)
-        id = canvas.create_text(pos, anchor=NW, text=self.channel.name, fill='#AAAAAA', width=canvas.winfo_width(), font=("Arial", font_size))
-
-        canvas.tag_bind(_tag, "<1>", self.onVideoClick)
-
-    def getDimension(self) -> Dimensions:
-        return (-1, self.thumbnail.height)
-
-    def onVideoClick(self, d) -> None:
-        print(self.title)
-
-
-@dataclass
-class Channel:
-    name: str
-    channel_icon: Union[TkImage, PILImage, None]
-
-
 def RGBtoHex(R: int, G: int, B: int):
     return "#{:02x}{:02x}{:02x}".format(R,G,B)
