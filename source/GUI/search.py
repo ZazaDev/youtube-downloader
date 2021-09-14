@@ -1,6 +1,8 @@
-from tkinter.constants import *
-from GUI.definitions import *
+from __future__ import annotations
+from GUI import Assets
 from GUI import list
+from GUI.definitions import *
+from tkinter.constants import *
 import tkinter
 from PIL import ImageTk, Image
 
@@ -17,7 +19,7 @@ class QueryEntry(tkinter.Frame):
         self.entry.configure(highlightbackground="#303030", insertbackground='white', highlightcolor="#303030", highlightthickness=1, bg="#121212", border=0, fg="#AAAAAA")
         self.entry.pack(side=LEFT, fill=BOTH, expand=True)
 
-        self._img = ImageTk.PhotoImage(Image.open(r"./source/GUI/assets/search.png"))
+        self._img = ImageTk.PhotoImage(Assets.search.value)
         self.button = tkinter.Label(self._frame, image=self._img, width=50)
         self.button.configure(highlightthickness=0, bg="#303030", border=0)
         self.button.pack(side=LEFT, fill=BOTH, expand=True)
@@ -50,9 +52,9 @@ class QueryEntry(tkinter.Frame):
 
     def onSubmit(self, event: Event):
         if not self._on_submit is None:
-            self._on_submit(self.entry, event)
+            self._on_submit(self, event)
 
-    def setOnSubmit(self, callback: Callable[[tkinter.Entry, tkinter.Event], None]):
+    def setOnSubmit(self, callback: Callable[[QueryEntry, tkinter.Event], None]):
         self._on_submit = callback
 
 
@@ -72,7 +74,7 @@ if __name__ == '__main__':
 
     s = Search(root)
     s.pack(side=TOP, fill=BOTH, expand=True)
-    s.head.setOnSubmit(lambda entry, event: print(entry.get()))
+    s.head.setOnSubmit(lambda entry, event: print(entry.entry.get()))
 
     print(s.head)
     print(s.head.entry)

@@ -1,62 +1,72 @@
-from PIL.Image import init
+from GUI import objects as GUIObj
 from GUI.definitions import *
 from API.definitions import *
-import tkinter
+import tkinter as tk
 import threading
 
 _colors = [RGBtoHex(255,0,0), RGBtoHex(0,255,0), RGBtoHex(0,0,255)]
 
-class _i(Item):
+class _i(GUIObj.Item):
     def __init__(self, I) -> None:
-        self.dimensions = Dimensions(-1, 200)
+        self.dimensions = GUIObj.Dimensions(-1, 200)
         self.i = I
 
     def __repr__(self) -> str:
         return f"{__class__.__name__}: id = {self.i}"
 
-    def draw(self, canvas: Canvas, draw_area: Box) -> Ids:
+    def draw(self, canvas: tk.Canvas, draw_area: GUIObj.Box) -> Ids:
         pos = draw_area
         pos.bottom = draw_area.top + (draw_area.bottom - draw_area.top) //2
         id = canvas.create_rectangle(tuple(pos), fill='#AAAAAA')
-        position = Position(pos.left + (pos.right - pos.left) / 2, pos.top + (pos.bottom - pos.top) / 2)
+        position = GUIObj.Position(pos.left + (pos.right - pos.left) / 2, pos.top + (pos.bottom - pos.top) / 2)
         canvas.create_text(tuple(position), text=str(self.i), fill=RGBtoHex(255,255,255))
 
-    def getDimensions(self) -> Dimensions:
-        return Dimensions(tuple(self.dimensions))
+    def getDimensions(self) -> GUIObj.Dimensions:
+        return GUIObj.Dimensions(tuple(self.dimensions))
 
-    def onUpdate(self, canvas: Canvas, event: Event) -> None:
+    def onUpdate(self, canvas: tk.Canvas, event: Event) -> None:
         return super().onUpdate(canvas, event)
 
-class _List(tkinter.Canvas):
+class _List(tk.Canvas):
     def __init__(self, master: Optional[Any], **kw) -> None:
+        try:
+            self.name = kw.pop('name')
+        except KeyError:
+            pass
         super().__init__(master, **kw)
         self.lock = threading.Lock()
-        self.dimensions: Dimensions = None
-        self.content_dimensions: Dimensions = Dimensions(0,0)
-        self.bind("<Enter>", self.enter)
-        self.bind("<Leave>", self.leave)
+        self.dimensions: GUIObj.Dimensions = None
+        self.content_dimensions: GUIObj.Dimensions = GUIObj.Dimensions(0,0)
+
+        name = "{d}: ".format(d=self.name)
+        enter = lambda e: threading.Thread(name=name+"enter", target=self.enter, args=(e, )).start()
+        leave = lambda e: threading.Thread(name=name+"leave", target=self.leave, args=(e, )).start()
+        self.bind("<Enter>", enter)
+        self.bind("<Leave>", leave)
     
-    def _convertDimensions(self, dimesions: Dimensions) -> Dimensions:
+    def _convertDimensions(self, dimesions: GUIObj.Dimensions) -> GUIObj.Dimensions:
         if dimesions.width < 0:
             dimesions.width = self.dimensions.width
         if dimesions.height < 0:
             dimesions.height = self.dimensions.height
         return dimesions
 
-    def _DimensionstoBox(self, id: int, dimesions: Dimensions) -> Box:
-        box = Box(self.bbox(id))
-        pos = Position(tuple(box))
-        return Box(pos.x, pos.y, pos.x + dimesions.width, pos.y + dimesions.height)
+    def _DimensionstoBox(self, id: int, dimesions: GUIObj.Dimensions) -> GUIObj.Box:
+        box = GUIObj.Box(self.bbox(id))
+        pos = GUIObj.Position(tuple(box))
+        return GUIObj.Box(pos.x, pos.y, pos.x + dimesions.width, pos.y + dimesions.height)
 
     def leave(self, event: Event):
         self.unbind("<Button-4>")
         self.unbind("<Button-5>")
-        print(f"{self.__class__.__name__}: leaves")
+        print(f"{self.name}: leaves")
 
     def enter(self, event: Event):
-        self.bind("<Button-4>", self.mwup)
-        self.bind("<Button-5>", self.mwdown)
-        print(f"{self.__class__.__name__}: enter")
+        mwheelup   = lambda e: threading.Thread(name="mwheelup", target=self.mwup, args=(e,)).start()
+        mwheeldowm = lambda e: threading.Thread(name="mwheeldown", target=self.mwdown, args=(e,)).start()
+        self.bind("<Button-4>", mwheelup)
+        self.bind("<Button-5>", mwheeldowm)
+        print(f"{self.name}: enter")
 
     def mwup(self, event: Event):
         if self.content_dimensions.height > self.dimensions.height:
@@ -70,17 +80,17 @@ class _List(tkinter.Canvas):
     def place_configure(self, **kw: Any) -> None:
         super().place_configure(**kw)
         self.update()
-        self.dimensions = Dimensions(self.winfo_width(), self.winfo_height())
+        self.dimensions = GUIObj.Dimensions(self.winfo_width(), self.winfo_height())
 
     def pack_configure(self, **kw: Any) -> None:
         super().pack_configure(**kw)
         self.update()
-        self.dimensions = Dimensions(self.winfo_width(), self.winfo_height())
+        self.dimensions = GUIObj.Dimensions(self.winfo_width(), self.winfo_height())
 
     def grid_configure(self, **kw: Any) -> None:
         super().grid_configure(**kw)
         self.update()
-        self.dimensions = Dimensions(self.winfo_width(), self.winfo_height())
+        self.dimensions = GUIObj.Dimensions(self.winfo_width(), self.winfo_height())
 
     place = place_configure
     pack = pack_configure
@@ -90,21 +100,27 @@ class _List(tkinter.Canvas):
 class UnorderedList(_List):
     def __init__(self, master: Optional[Any], **kw) -> None:
         super().__init__(master, **kw)
-        self.next_pos: Position = Position(0,0)
-        self.items: List[Tuple[Item, int, Position]] = []
+        self.next_pos: GUIObj.Position = GUIObj.Position(0,0)
+        self.items: List[Tuple[GUIObj.Item, int, GUIObj.Position]] = []
         self.bind("<Configure>", self.onUpdate)
         self.i = 0
 
-    def addItem(self, item: Item) -> int:
-        dimension: Dimensions = self._convertDimensions(item.getDimensions())
+    def addItem(self, item: GUIObj.Item, bind: Optional[Tuple[List[str], Callable[[GUIObj.Item, Event], None]]] = None) -> int:
+        dimension: GUIObj.Dimensions = self._convertDimensions(item.getDimensions())
 
         self.lock.acquire()
-        draw_area: Box = Box(self.next_pos.x, self.next_pos.y ,\
+        draw_area: GUIObj.Box = GUIObj.Box(self.next_pos.x, self.next_pos.y ,\
                         self.next_pos.x + dimension.width,\
                         self.next_pos.y + dimension.height)
         id = self.create_rectangle(tuple(draw_area), fill="", outline="")
-        item.draw(self, draw_area)
-        self.items.append((item, id, Position(tuple(draw_area))))
+        tag = item.draw(self, draw_area)
+        self.itemconfigure(id, tag=tag)
+
+        if not bind is None:
+            for hook in bind[0]:
+                self.tag_bind(tag, hook, lambda e, v=item: bind[1](v, e))
+        
+        self.items.append((item, id, GUIObj.Position(tuple(draw_area))))
         self.next_pos += (0, dimension.height)
         self.content_dimensions += (0, dimension.height)
         self.configure(scrollregion=self.bbox("all"))
@@ -112,21 +128,21 @@ class UnorderedList(_List):
 
         return self.items.index(self.items[-1])
 
-    def getItem(self, id) -> Item:
+    def getItem(self, id) -> GUIObj.Item:
         return self.items[id][0]
 
-    def onUpdate(self, event: tkinter.Event) -> None:
+    def onUpdate(self, event: tk.Event) -> None:
         print(f"{self.__class__.__name__}: {event}")
-        self.dimensions = Dimensions(event.width, event.height)
+        self.dimensions = GUIObj.Dimensions(event.width, event.height)
         for (item, rect_id, init_pos) in self.items:
             dimensions = self._convertDimensions(item.getDimensions())
-            rect = Box(init_pos.x, init_pos.y, init_pos.x + dimensions.width, init_pos.y + dimensions.height)
+            rect = GUIObj.Box(init_pos.x, init_pos.y, init_pos.x + dimensions.width, init_pos.y + dimensions.height)
             self.coords(rect_id, rect.left, rect.top, rect.right, rect.bottom)
             print(f"\texpected: {rect}, actual: {self.bbox(rect_id)}")
             item.onUpdate(self, event)
 
     def clear(self):
-        self.next_pos = Position(0,0)
+        self.next_pos = GUIObj.Position(0,0)
         self.items = []
         self.delete('all')
 
@@ -134,16 +150,16 @@ class UnorderedList(_List):
 class OrderedList(_List):
     def __init__(self, master: Optional[Any], **kw) -> None:
         super().__init__(master, **kw)
-        self.items: List[Tuple[Item, int, int]] = []
-        self.item_dimensions: Dimensions = None
+        self.items: List[Tuple[GUIObj.Item, int, int]] = []
+        self.item_dimensions: GUIObj.Dimensions = None
         self.bind("<Configure>", self.onUpdate)
         self.i = 0
     
-    def addItem(self, item: Item, index: int):
+    def addItem(self, item: GUIObj.Item, index: int):
         if self.item_dimensions is None:
             self.item_dimensions = self._convertDimensions(item.getDimensions())
-        init_pos = Position(0, self.item_dimensions.height*index)
-        draw_area = Box((init_pos.x, init_pos.y, self.item_dimensions.width, init_pos.y+self.item_dimensions.height))
+        init_pos = GUIObj.Position(0, self.item_dimensions.height*index)
+        draw_area = GUIObj.Box((init_pos.x, init_pos.y, self.item_dimensions.width, init_pos.y+self.item_dimensions.height))
 
         self.lock.acquire()
         id = self.create_rectangle(tuple(draw_area), fill="", outline="")
@@ -155,15 +171,15 @@ class OrderedList(_List):
         self.items.append((item, id, index))
         return self.items.index(self.items[-1])
 
-    def getItem(self, id: int) -> Item:
+    def getItem(self, id: int) -> GUIObj.Item:
         return self.items[id][0]
 
-    def onUpdate(self, event: tkinter.Event) -> None:
-        print(f"{self.__class__.__name__}: {event}")
-        self.dimensions = Dimensions(event.width, event.height)
+    def onUpdate(self, event: tk.Event) -> None:
+        print(f"{self.name}: {event}")
+        self.dimensions = GUIObj.Dimensions(event.width, event.height)
         for (item, rect_id, index) in self.items:
             dimensions = self._convertDimensions(item.getDimensions())
-            rect = Box(0, self.item_dimensions.height * index, 0 + dimensions.width, self.item_dimensions.height * index + dimensions.height)
+            rect = GUIObj.Box(0, self.item_dimensions.height * index, 0 + dimensions.width, self.item_dimensions.height * index + dimensions.height)
             self.coords(rect_id, rect.left, rect.top, rect.right, rect.bottom)
             print(f"\texpected: {rect}, actual: {self.bbox(rect_id)}")
             item.onUpdate(self, event)
@@ -185,7 +201,7 @@ def workol(ol, _):
 
 
 def main():
-    root = tkinter.Tk()
+    root = tk.Tk()
     root.title("Demo")
     root.geometry("800x600")
 

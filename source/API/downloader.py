@@ -1,18 +1,16 @@
+from GUI import Item
 from GUI.definitions import *
 from API.definitions import *
-import requests
-from io import BytesIO
-from PIL import ImageOps, ImageTk
+
 from time import time
 
 import threading
 import pytube
-
-session = requests.Session()
 class Query(Enum):
     Playlist = 0
     Search   = 1
     Video    = 1
+
 
 def elapsed_time(funcao):
     def wrapper(*args, **kw):
@@ -27,7 +25,7 @@ def elapsed_time(funcao):
 _threads = []
 
 def populate(py_videos: List[pytube.YouTube], videos: List[Item], creator: object, callback: Callable[[Item], None], count: int = -1, **kw):
-    if count == -1:
+    if count == -1 or count > len(py_videos):
         count = len(py_videos)
     for i in range(count):
         t = threading.Thread(name=py_videos[i].title, target=_populate, args=(py_videos[i], videos, creator, callback), kwargs=kw)
@@ -35,21 +33,16 @@ def populate(py_videos: List[pytube.YouTube], videos: List[Item], creator: objec
         t.start()
     return "T"
 
+@elapsed_time
 def _populate(py_vid: pytube.YouTube, videos: List[Item], creator: object, callback: Callable[[Item], None], **kw):
-    import cProfile
-    import pstats
-
-    with cProfile.Profile() as pr:
-        name = threading.currentThread().name
-        try:
-            vid = creator(py_vid)
-        except:
-            return name
-        videos.append(vid)
-        callback(vid)
-    
-    stats = pstats.Stats(pr)
-    stats.sort_stats(pstats.SortKey.TIME)
+    name = threading.currentThread().name
+    try:
+        vid = creator(py_vid)
+    except Exception as e:
+        print(e)
+        return name
+    videos.append(vid)
+    callback(vid, **kw)
     return name
 
 def parseURL(url: URL) -> PytubeObj:
@@ -77,45 +70,3 @@ def parseVideos(obj: PytubeObj) -> List[Item]:
 def getMoreResults(search: pytube.Search):
     if isinstance(search, pytube.Search):
         search.get_next_results()
-
-
-def getAspectRatio(img: Image.Image) -> float:
-    width, height = img.size
-    ratio = width / height
-    return ratio
-
-def getNewSize(img: Image.Image, resize: Porcentage):
-    height = img.size[1]
-    ratio = getAspectRatio(img)
-    new_height = int(height * resize)
-    new_width = int(new_height * ratio)
-    return (new_width, new_height)
-
-def getImageFromURL(url: URL, resize: Optional[Porcentage] = None, crop: Optional[Borders] = None) -> PILImage:
-    data = session.get(url)
-    img = Image.open(BytesIO(data.content))
-    if not crop is None:
-        img = ImageOps.crop(img, crop)
-    if not resize is None:
-        img = img.resize(getNewSize(img, resize), Image.ANTIALIAS)
-    return img
-
-def PILtoTkImage(img: PILImage, resize: Optional[Porcentage] = None, crop: Optional[Borders] = None) -> TkImage:
-    if not crop is None:
-        img = ImageOps.crop(img, crop)
-    if not resize is None:
-        img = img.resize(getNewSize(img, resize), Image.ANTIALIAS)
-    return ImageTk.PhotoImage(img)
-
-def getIconUrl(vid: pytube.YouTube, res: ChannelIconRes) -> URL:
-    url = ""
-    start = vid.initial_data['contents']['twoColumnWatchNextResults']['results']['results']['contents']
-    for i in range(len(start)):
-        try:
-            url = start[i]['videoSecondaryInfoRenderer']['owner']['videoOwnerRenderer']\
-                ['thumbnail']['thumbnails'][res.value]['url']
-        except KeyError:
-            pass
-        if url:
-            return url
-

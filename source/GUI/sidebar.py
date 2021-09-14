@@ -1,15 +1,16 @@
 from GUI.definitions import *
+from API.definitions import *
 from GUI import list
+from API import ImageOps
 import tkinter
-from API import downloader
 
 class SideBar:
     def __init__(self, base_width: int, spawm_width: int, master: Optional[tkinter.Misc] = None, **kw) -> None:
         self._frame = tkinter.Frame(master, kw)
-        self.foot: Dict[tkinter.Frame, tkinter.Label] = {'Container': tkinter.Frame(self._frame, bg="blue", width=150, height=50), 'Label': None}
-        self.foot['Label'] = tkinter.Label(self.foot['Container'])
-        self.content  = list.OrderedList(self._frame, bg="red", width=150, highlightthickness=0)
-        self.settings = list.OrderedList(self._frame, bg="orange", width=50, highlightthickness=0)
+        self.foot: Dict[tkinter.Frame, tkinter.Label] = {'Container': tkinter.Frame(self._frame, bg="blue", width=150, height=65), 'Label': None}
+        self.foot['Label'] = tkinter.Label(self.foot['Container'], bg=self.foot['Container']['bg'])
+        self.content  = list.OrderedList(self._frame, bg="red", width=150, highlightthickness=0, name="content")
+        self.settings = list.OrderedList(self._frame, bg="orange", width=65, highlightthickness=0, name="settings")
 
         self.base_width = base_width
         self.spawn_width = spawm_width
@@ -26,7 +27,7 @@ class SideBar:
         ext_width = self.base_width + self.spawn_width
         self._frame.place_configure(width=ext_width)
         self.content.pack_forget()
-        self.foot['Container'].configure(width=50)
+        self.foot['Container'].configure(width=65)
         self.settings.pack(side=BOTTOM, anchor=W, fill=Y, expand=True)
         self.content.place(x=65, y=0, width=self.base_width, relheight=1)
         self._frame.tkraise()
@@ -37,6 +38,10 @@ class SideBar:
         self.settings.pack_forget()
         self.content.pack(side=BOTTOM, anchor=W, fill=Y, expand=True)
         self.foot['Container'].configure(width=150)
+
+    def setFootImage(self, image: TkImage):
+        self.foot['Image'] = image
+        self.foot['Label'].configure(image=image)
 
     def getFoot(self) -> tkinter.Label:
         return self.foot['Label']
@@ -56,9 +61,9 @@ if __name__ == '__main__':
     from os import getcwd
 
     print(getcwd())
-    p = Image.open("./source/GUI/assets/options.png")
+    p = Image.open("./GUI/assets/options.png")
     # p.show()
-    p = downloader.getImageFromURL("https://i.ytimg.com/vi/CXKSGbbQsVk/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAoWmsQjohtE-hhv2X_GFmNs1AcJg", 0.2)
+    p = ImageOps.getImageFromURL("https://i.ytimg.com/vi/CXKSGbbQsVk/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAoWmsQjohtE-hhv2X_GFmNs1AcJg", 0.2)
     # p.show()
     print(p.size)
 
