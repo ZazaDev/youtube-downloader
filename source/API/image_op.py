@@ -5,7 +5,7 @@ from API.definitions import *
 from copy import deepcopy
 from requests import Session
 from io import BytesIO
-from PIL import ImageOps as PILImageOps
+from PIL import ImageOps as PILImageOps, Image
 
 class ImageOps:
     session: Session = Session()

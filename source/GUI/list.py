@@ -120,7 +120,7 @@ class UnorderedList(_List):
         self.bind("<Configure>", self.onUpdate)
         self.i = 0
 
-    def addItem(self, item: GUIObj.Item, bind: Optional[Tuple[List[str], Callable[[GUIObj.Item, Event], None]]] = None) -> int:
+    def addItem(self, item: GUIObj.Item, offset: Optional[Tuple[int,int]] = (0,0), bind: Optional[Tuple[List[str], Callable[[GUIObj.Item, Event], None]]] = None) -> int:
         dimension: GUIObj.Dimensions = self._convertDimensions(item.getDimensions())
 
         self.lock.acquire()
@@ -136,8 +136,11 @@ class UnorderedList(_List):
                 self.tag_bind(tag, hook, lambda e, v=item: bind[1](v, e))
         
         self.items.append((item, id, GUIObj.Position(tuple(draw_area))))
-        self.next_pos += (0, dimension.height)
-        self.content_dimensions += (0, dimension.height)
+        if isinstance(offset, tuple):
+            offset = GUIObj.Position(offset)
+        size = offset + (0, dimension.height)
+        self.next_pos += tuple(size)
+        self.content_dimensions += tuple(size)
         self.configure(scrollregion=self.bbox("all"))
         self.lock.release()
 

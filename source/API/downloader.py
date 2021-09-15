@@ -24,25 +24,25 @@ def elapsed_time(funcao):
 
 _threads = []
 
-def populate(py_videos: List[pytube.YouTube], videos: List[Item], creator: object, callback: Callable[[Item], None], count: int = -1, **kw):
+def populate(py_videos: List[pytube.YouTube], videos: List[Item], creator: object, after: Callable, callback: Callable[[Item], None], count: int = -1, **kw):
     if count == -1 or count > len(py_videos):
         count = len(py_videos)
     for i in range(count):
-        t = threading.Thread(name=py_videos[i].title, target=_populate, args=(py_videos[i], videos, creator, callback), kwargs=kw)
+        t = threading.Thread(name=py_videos[i].title, target=_populate, args=(py_videos[i], videos, creator, after, callback), kwargs=kw)
         _threads.append(t)
         t.start()
     return "T"
 
 @elapsed_time
-def _populate(py_vid: pytube.YouTube, videos: List[Item], creator: object, callback: Callable[[Item], None], **kw):
+def _populate(py_vid: pytube.YouTube, videos: List[Item], creator: object, after: Callable, callback: Callable[[Item], None], **kw):
     name = threading.currentThread().name
     try:
         vid = creator(py_vid)
     except Exception as e:
         print(e)
         return name
-    videos.append(vid)
-    callback(vid, **kw)
+    videos.append(vid) 
+    after(0, lambda: callback(vid, **kw))
     return name
 
 def parseURL(url: URL) -> PytubeObj:

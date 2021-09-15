@@ -1,7 +1,6 @@
 from GUI.definitions import *
 from API.definitions import *
 from GUI import list
-from API import ImageOps
 import tkinter
 
 class SideBar:
@@ -53,6 +52,8 @@ class SideBar:
         return self.settings
 
 if __name__ == '__main__':
+    from API import ImageOps
+    
     root = tkinter.Tk()
     root.geometry("800x500")
 

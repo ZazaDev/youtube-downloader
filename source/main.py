@@ -1,5 +1,8 @@
 from __future__ import annotations
 import threading
+from time import time
+
+from PIL.Image import ID
 
 import GUI
 import API
@@ -10,30 +13,19 @@ from datetime import datetime
 import tkinter as tk
 
 from GUI.download_popup import DownloadMenu
+from os import path, getcwd
 
-class Image:
-    _value: TkImage
-    raw: PILImage
-
-    def __init__(self, pil_img: PILImage, **kw) -> None:
-        self.raw = pil_img
-        self._value = API.ImageOps.PILtoTkImage(pil_img, **kw)
-
-    def __repr__(self) -> str:
-        return self._value
-
-    def height(self):
-        return self._value.height()
-
-    def width(self):
-        return self._value.width()
+OUTPUT_VIDEO = path.join(getcwd(), "..", "videos")
+OUTPUT_AUDIO = path.join(getcwd(), "..", "audios")
 
 class Video(GUI.Item):
     title: str
     views: int
     publish_date: datetime
     streams: Streams
-    thumbnail: Image
+    set_on_progress: Callable[[Callable[[Stream, bytes, int], None]], None]
+    set_on_complete: Callable[[Callable[[Stream, Optional[str]], None]], None]
+    thumbnail: API.Image
     channel: Channel
 
     def __init__(self, video: pyVideo) -> None:
@@ -41,7 +33,9 @@ class Video(GUI.Item):
         self.views = video.views
         self.publish_date = video.publish_date
         self.streams = video.streams
-        self.thumbnail = Image(API.ImageOps.getImageFromURL(video.thumbnail_url, new_size=(250,200), crop=(0,60,0,60)))
+        self.set_on_progress = video.register_on_progress_callback
+        self.set_on_complete = video.register_on_complete_callback
+        self.thumbnail = API.Image(API.ImageOps.getImageFromURL(video.thumbnail_url, new_size=(250,200), crop=(0,60,0,60)))
         self.channel = Channel(video)
 
     def __repr__(self) -> str:
@@ -50,14 +44,14 @@ class Video(GUI.Item):
     def draw(self, canvas: tk.Canvas, draw_area: GUI.Box) -> Ids:
         _tag = f"vid{str(hash(self.title))[:4]}"
         
-        id = canvas.create_image((draw_area.left, draw_area.top), anchor=NW, tag=_tag, image=self.thumbnail._value)
+        id = canvas.create_image((draw_area.left, draw_area.top), anchor=NW, tag=_tag, image=self.thumbnail.value)
 
         box = GUI.Box(canvas.bbox(id))
         text_width = draw_area.right-box.right
         id = canvas.create_text((box.right+10, box.top), tag=_tag, anchor=NW, width=text_width, text=self.title, fill="white")
 
         box = GUI.Box(canvas.bbox(id))
-        id = canvas.create_image((box.left, box.bottom + 15), anchor=NW, image=self.channel.icon._value)
+        id = canvas.create_image((box.left, box.bottom + 15), anchor=NW, image=self.channel.icon.value)
 
         box = GUI.Box(canvas.bbox(id))
         id = canvas.create_text((box.right + 10, box.top + (box.bottom - box.top) // 2 - 7), anchor=NW, width=text_width, text=self.channel.name, fill="#AAAAAA")
@@ -77,22 +71,57 @@ class Channel:
 
     def __init__(self, video: pyVideo, res: ChannelIconRes = ChannelIconRes.R_48P) -> None:
         self.name = video.author
-        self.icon = Image(API.ImageOps.getImageFromURL(API.ImageOps.getIconUrl(video, res)))
+        self.icon = API.Image(API.ImageOps.getImageFromURL(API.ImageOps.getIconUrl(video, res)))
 
 
-class Miniature(GUI.Item):
-    thumbnail: Image
+class Miniature(GUI.Item, API.DownloadTarget):
+    fg: API.Image
+    _bg: PILImage
+    bg: API.Image
+    GUI_info : Dict[tk.Canvas, int]
 
-    def __init__(self, video: Video) -> None:
-        self.thumbnail = Image(video.thumbnail.raw, new_size=(150,85), pad_color=(0,0,0))
+    def __init__(self, video: Video, stream: API.Stream) -> None:
+        img = API.ImageOps.PILOperations(video.thumbnail.raw, new_size=(150,85), pad_color=(0,0,0)).convert('RGBA')
+        super().__init__(video.set_on_progress, video.set_on_complete, stream)
+        self.fg = API.Image(img)
+        self._bg = Image.new(self.fg.raw.mode, self.fg.raw.size, (0,0,0,0))
+        self.bg = API.Image(API.ImageOps.blend(img, (255,255,255,180)))
+        self.GUI_info = {'Canvas': None, 'Id': None}
 
+    ## API
+    def onProgress(self, stream: pytube.Stream, chunk: bytes, bytes_remaning: int, **kw):
+        self.animation_info.download_progress = self.getProgress(stream, bytes_remaning)
+
+        if not self.animation_info.started:
+            self.animation_info.started = True
+            threading.currentThread().name = f"animating {stream.title}"
+            API.Animations.progress(self)
+    
+    def onComplete(self, stream: Stream, path: Optional[str]) -> None:
+        print(path, "finished in ", time()-self.start, "s")
+    
+    def download(self, path: str) -> None:
+        self.start = time()
+        return super().download(path)
+    
+    def animation(self, pixels: Pixels) -> None:
+        self.fg = API.Image(Image.fromarray(pixels))
+        self.GUI_info['Canvas'].itemconfigure(self.GUI_info['Id'], image=self.fg.value)
+        self.GUI_info['Canvas'].update()
+
+    def getToplevel(self) -> tk.Tk:
+        return self.GUI_info['Canvas'].winfo_toplevel()
+    
+    ## GUI
     def draw(self, canvas: tk.Canvas, draw_area: GUI.Box) -> TkTag:
-        pos = GUI.Position((draw_area.right - draw_area.left - self.thumbnail.width()) // 2,\
-                       draw_area.top + (draw_area.bottom - draw_area.top - self.thumbnail.height()) // 2)
-        canvas.create_image(tuple(pos), image=self.thumbnail._value, anchor=NW)
+        pos = GUI.Position((draw_area.right - draw_area.left - self.bg.value.width()) // 2,\
+                       draw_area.top + (draw_area.bottom - draw_area.top - self.bg.value.height()) // 2)
+        canvas.create_image(tuple(pos), image=self.bg.value, anchor=NW)
+        self.GUI_info['Id'] = canvas.create_image(tuple(pos), anchor=NW)
+        self.GUI_info['Canvas'] = canvas
 
     def getDimensions(self) -> GUI.Dimensions:
-        return GUI.Dimensions(-1, self.thumbnail.height())
+        return GUI.Dimensions(-1, self.bg.value.height())
     
     def onUpdate(self, canvas: tk.Canvas, event: Event) -> None:
         pass
@@ -135,7 +164,7 @@ class Aplication(tk.Tk):
             
             videos = API.parseVideos(vid)
             temp = lambda v,e: threading.Thread(name="OnClickVideo", target=self.onClick, args=(v,e)).start()
-            API.populate(videos, self.videos, Video, search.content.addItem, 6, bind=(["<1>"], temp))
+            API.populate(videos, self.videos, Video, self.after, search.content.addItem, 6, offset=(0,5), bind=(["<1>"], temp))
 
     def onResize(self, event: Event):
         if(event.widget == self and
@@ -151,15 +180,19 @@ class Aplication(tk.Tk):
 
     def onDMClick(self, btn: tk.Button, type: str, streams: pytube.StreamQuery, video: Video):
         if type == 'Audio':
-                streams.filter(abr=btn['text']).first().download("./../music")
+                stream = streams.filter(abr=btn['text']).first()
+                out = OUTPUT_AUDIO
         elif type == 'Video':
             streams = streams.filter(res=btn['text'])
             stream = streams.get_highest_resolution()
             if stream is None:
                 stream = streams.first()
-            stream.download("./../videos")
-        self.sidebar.getBase().addItem(Miniature(video), self.sidebar_amount)
+            out = OUTPUT_VIDEO
+        mini = Miniature(video, stream)
+        self.sidebar.getBase().addItem(mini, self.sidebar_amount)
+        mini.download(out)
         self.sidebar_amount += 1
+        btn.winfo_toplevel().destroy()
 
 
 def main():
