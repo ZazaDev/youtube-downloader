@@ -1,3 +1,4 @@
+from re import I
 from GUI import Item
 from GUI.definitions import *
 from API.definitions import *
@@ -6,6 +7,8 @@ from time import time
 
 import threading
 import pytube
+from moviepy.editor import VideoFileClip, AudioFileClip
+from os import remove
 class Query(Enum):
     Playlist = 0
     Search   = 1
@@ -70,3 +73,15 @@ def parseVideos(obj: PytubeObj) -> List[Item]:
 def getMoreResults(search: pytube.Search):
     if isinstance(search, pytube.Search):
         search.get_next_results()
+
+# This take way to long
+def uniteAudioAndVideo(video_path: str, audio_path: str) -> None:
+    video = VideoFileClip(video_path)
+    audio = AudioFileClip(audio_path)
+    videoclip = video.set_audio(audio)
+    videoclip.write_videofile(video_path)
+    remove(video_path)
+    remove(audio_path)
+
+if __name__ == '__main__':
+    uniteAudioAndVideo(r"C:\Dev\One_Language_Projects\Python\youtube-downloader\source\API\ALL OF THE UI!  Hazel Dev Log.mp4", r"C:\Dev\One_Language_Projects\Python\youtube-downloader\source\API\【PV】【血界战线 OP】【Helloworld!】 无字幕版.mp4")

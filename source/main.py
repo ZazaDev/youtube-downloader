@@ -180,10 +180,10 @@ class Aplication(tk.Tk):
 
     def onDMClick(self, btn: tk.Button, type: str, streams: pytube.StreamQuery, video: Video):
         if type == 'Audio':
-                stream = streams.filter(abr=btn['text']).first()
+                stream = streams.filter(abr=btn['text'], mime_type='audio/mp4').first()
                 out = OUTPUT_AUDIO
         elif type == 'Video':
-            streams = streams.filter(res=btn['text'])
+            streams = streams.filter(res=btn['text'], mime_type='video/mp4', progressive=True)
             stream = streams.get_highest_resolution()
             if stream is None:
                 stream = streams.first()

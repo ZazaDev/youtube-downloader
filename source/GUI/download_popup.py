@@ -80,7 +80,7 @@ class DownloadMenu:
 
     @staticmethod
     def sortVideoInfo(streams: pytube.StreamQuery) -> Tuple[str]:
-        unsorted_res = [stream.resolution for stream in streams.filter(mime_type="video/mp4") if not stream is None ]
+        unsorted_res = [stream.resolution for stream in streams.filter(mime_type="video/mp4", progressive=True) if not stream is None ]
         sorted_res = [f"{r}p" for r in sorted([int(r[:-1]) for r in unsorted_res], reverse=True)]
         return tuple(dict.fromkeys(sorted_res).keys())
 
