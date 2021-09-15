@@ -1,6 +1,7 @@
 from GUI import objects as GUIObj
 from GUI.definitions import *
 from API.definitions import *
+from sys import platform
 import tkinter as tk
 import threading
 
@@ -32,7 +33,7 @@ class _List(tk.Canvas):
         try:
             self.name = kw.pop('name')
         except KeyError:
-            pass
+            self.name = "None"
         super().__init__(master, **kw)
         self.lock = threading.Lock()
         self.dimensions: GUIObj.Dimensions = None
@@ -56,26 +57,40 @@ class _List(tk.Canvas):
         pos = GUIObj.Position(tuple(box))
         return GUIObj.Box(pos.x, pos.y, pos.x + dimesions.width, pos.y + dimesions.height)
 
-    def leave(self, event: Event):
-        self.unbind("<Button-4>")
-        self.unbind("<Button-5>")
-        print(f"{self.name}: leaves")
+    if platform == 'linux':
+        def leave(self, event: Event):
+            self.unbind("<Button-4>")
+            self.unbind("<Button-5>")
+            print(f"{self.name}: leaves")
 
-    def enter(self, event: Event):
-        mwheelup   = lambda e: threading.Thread(name="mwheelup", target=self.mwup, args=(e,)).start()
-        mwheeldowm = lambda e: threading.Thread(name="mwheeldown", target=self.mwdown, args=(e,)).start()
-        self.bind("<Button-4>", mwheelup)
-        self.bind("<Button-5>", mwheeldowm)
-        print(f"{self.name}: enter")
+        def enter(self, event: Event):
+            mwheelup   = lambda e: threading.Thread(name="mwheelup", target=self.mwup, args=(e,)).start()
+            mwheeldowm = lambda e: threading.Thread(name="mwheeldown", target=self.mwdown, args=(e,)).start()
+            self.bind("<Button-4>", mwheelup)
+            self.bind("<Button-5>", mwheeldowm)
+            print(f"{self.name}: enter")
 
-    def mwup(self, event: Event):
-        if self.content_dimensions.height > self.dimensions.height:
-            self.yview_scroll(-1, "unit")
+        def mwup(self, event: Event):
+            if self.content_dimensions.height > self.dimensions.height:
+                self.yview_scroll(-1, "unit")
 
-    def mwdown(self, event: Event):
-        if self.content_dimensions.height > self.dimensions.height:
-            self.yview_scroll(1, "unit")
+        def mwdown(self, event: Event):
+            if self.content_dimensions.height > self.dimensions.height:
+                self.yview_scroll(1, "unit")
+    
+    elif platform == "win32":
+        def leave(self, event: Event):
+            self.unbind("<MouseWheel>")
+            print(f"{self.name}: leaves")
 
+        def enter(self, event: Event):
+            mwheel = lambda e: threading.Thread(name="Win: mwheel", target=self.mwheel, args=(e,)).start()
+            self.bind("<MouseWheel>", mwheel)
+            print(f"{self.name}: enter")
+
+        def mwheel(self, event: Event):
+            if self.content_dimensions.height > self.dimensions.height:
+                self.yview_scroll(int(-1*(event.delta/120)), "units")
 
     def place_configure(self, **kw: Any) -> None:
         super().place_configure(**kw)

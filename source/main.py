@@ -19,13 +19,8 @@ class Image:
         self.raw = pil_img
         self._value = API.ImageOps.PILtoTkImage(pil_img, **kw)
 
-<<<<<<< HEAD
-        resolutions = ["1440p", "1080p", "720p", "480p", "360p", "240p", "144p"]
-        self.btns = [Button(self.res_field, text=f"Download {res}") for res in resolutions]
-=======
     def __repr__(self) -> str:
         return self._value
->>>>>>> yt-search
 
     def height(self):
         return self._value.height()
