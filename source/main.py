@@ -1,115 +1,176 @@
-import pytube
-from typing import Callable, List, Tuple
-from tkinter import *
+from __future__ import annotations
+import threading
 
-class GUI:
-    def __init__(self, title: str, geometry : str) -> None:
-        self.root = Tk()
-        self.root.title(title)
-        self.root.geometry(geometry)
+import GUI
+import API
+from GUI.definitions import *
+from API.definitions import *
 
-        self.header = Label(self.root, text="YouTube Downloader", fg="red", font=("Calibri", 15))
-        self.header.pack(side=TOP)
-        
-        self.frame = Frame(self.root)
-        self.frame.pack(side=TOP)
+from datetime import datetime
+import tkinter as tk
 
-        # URL Input Frame
-        self.url_field = Frame(self.frame)
-        self.url_field.grid(row=1, column=1, columnspan=2)
+from GUI.download_popup import DownloadMenu
 
-        self.url_label = Label(self.url_field, text = "Enter URL:", font=('Calibri', 12))
-        self.url_label.grid(row=1, column=1)
+class Image:
+    _value: TkImage
+    raw: PILImage
 
-        self.url_query = Entry(self.url_field, font=('Calibri', 15))
-        self.url_query.grid(row=2, column=1, pady=5)
+    def __init__(self, pil_img: PILImage, **kw) -> None:
+        self.raw = pil_img
+        self._value = API.ImageOps.PILtoTkImage(pil_img, **kw)
 
-
-        # Resolutions Buttons
-        self.res_field = Frame(self.frame, name="res_field")
-        print(str(self.res_field))
-        self.res_field.grid(row=2, column=1)
-
+<<<<<<< HEAD
         resolutions = ["1440p", "1080p", "720p", "480p", "360p", "240p", "144p"]
         self.btns = [Button(self.res_field, text=f"Download {res}") for res in resolutions]
+=======
+    def __repr__(self) -> str:
+        return self._value
+>>>>>>> yt-search
 
-        GUI.arrangeButton(self.btns)
+    def height(self):
+        return self._value.height()
 
-        # Bottom Text
-        self.url_warn = Label(self.frame, text = "360p/720p for Whatsapp", fg="red", font=('Calibri', 10))
-        self.url_warn.grid(row=3, columnspan=2)
-    
-    def start(self):
-        self.root.mainloop()
+    def width(self):
+        return self._value.width()
 
-    def setBtnFunc(self, func: Callable) -> None:
-        for btn in self.btns:
-            string = btn['text'].split(' ')[-1]
-            btn.configure(command=lambda x=string: func(x))
+class Video(GUI.Item):
+    title: str
+    views: int
+    publish_date: datetime
+    streams: Streams
+    thumbnail: Image
+    channel: Channel
 
-    def setSearch(self, hooks: List[str], fun: Callable) -> None:
-        for hook in hooks:
-            self.url_query.bind(hook, fun)
+    def __init__(self, video: pyVideo) -> None:
+        self.title = video.title
+        self.views = video.views
+        self.publish_date = video.publish_date
+        self.streams = video.streams
+        self.thumbnail = Image(API.ImageOps.getImageFromURL(video.thumbnail_url, new_size=(250,200), crop=(0,60,0,60)))
+        self.channel = Channel(video)
 
-    @staticmethod
-    def arrangeButton(btns: List[Button]):
-        for (index, btn) in enumerate(btns):
-            print(btn['text'])
-            half_way = len(btns) // 2
-            if len(btns) % 2 == 1 and btn == btns[-1]:
-                btn.grid(row=half_way+1, column=1, columnspan=2, sticky='nesw')
-            elif index < half_way:
-                btn.grid(row=index%half_way+1, column=1, sticky='nesw')
-            else:
-                btn.grid(row=index%half_way+1, column=2, sticky='nesw')
+    def __repr__(self) -> str:
+        return self.title
+
+    def draw(self, canvas: tk.Canvas, draw_area: GUI.Box) -> Ids:
+        _tag = f"vid{str(hash(self.title))[:4]}"
         
+        id = canvas.create_image((draw_area.left, draw_area.top), anchor=NW, tag=_tag, image=self.thumbnail._value)
+
+        box = GUI.Box(canvas.bbox(id))
+        text_width = draw_area.right-box.right
+        id = canvas.create_text((box.right+10, box.top), tag=_tag, anchor=NW, width=text_width, text=self.title, fill="white")
+
+        box = GUI.Box(canvas.bbox(id))
+        id = canvas.create_image((box.left, box.bottom + 15), anchor=NW, image=self.channel.icon._value)
+
+        box = GUI.Box(canvas.bbox(id))
+        id = canvas.create_text((box.right + 10, box.top + (box.bottom - box.top) // 2 - 7), anchor=NW, width=text_width, text=self.channel.name, fill="#AAAAAA")
+        canvas.tag_bind(_tag, "<1>", lambda x, y=self.title: print(y))
+        return _tag
+
+    def getDimensions(self) -> GUI.Dimensions:
+        return GUI.Dimensions(-1, self.thumbnail.height())
+
+    def onUpdate(self, canvas: tk.Canvas, event: Event) -> None:
+        return super().onUpdate(canvas, event)
 
 
-class Downloader:
-    def __init__(self) -> None:
-        self.stream    : List[pytube.Stream] = []
-        self.relations : List[Tuple]         = []
+class Channel:
+    name: str
+    icon: Image
 
-    def __getParentWidget(self, widget: Widget) -> Widget:
-        parent_name = widget.winfo_parent()
-        return widget._nametowidget(parent_name)
-
-    def search(self, event: Event) -> None:
-        URL = event.widget.get()
-
-        try:
-            video = pytube.YouTube(URL)
-        except:
-            print("Invalid URL")
-            return
-
-        self.streams = video.streams.filter(mime_type="video/mp4")
-
-        frames = self.__getParentWidget(self.__getParentWidget(event.widget)).winfo_children()
-        frame = [frame for frame in frames if "res_field" in str(frame)][0]
-
-        for child in frame.winfo_children():
-            if isinstance(child, Button):
-                print(child['text'])
-                res = child['text'].split(' ')[-1]
-                streams = self.streams.filter(res=res)
-                print(streams)
-                if(not streams):
-                    child.grid_remove()
-                else:
-                    child.grid()
-                    child['command'] = lambda x=streams.first(), y=f'{video.title}-{res}', z='mp4/': self.download(x, y, z)
-
-    def download(self, stream: pytube.Stream, title: str, path: str) -> None:
-        print(f'{title}:\n\t{stream}')
-        stream.download(filename=f'{title}.mp4', output_path=path)
+    def __init__(self, video: pyVideo, res: ChannelIconRes = ChannelIconRes.R_48P) -> None:
+        self.name = video.author
+        self.icon = Image(API.ImageOps.getImageFromURL(API.ImageOps.getIconUrl(video, res)))
 
 
-def main() -> None:
-    gui = GUI("YouTube Downloader by Neonzada", "500x300")
-    downloader = Downloader()
-    gui.setSearch(["<KP_Enter>", "<Return>"], downloader.search)
-    gui.start()
+class Miniature(GUI.Item):
+    thumbnail: Image
+
+    def __init__(self, video: Video) -> None:
+        self.thumbnail = Image(video.thumbnail.raw, new_size=(150,85), pad_color=(0,0,0))
+
+    def draw(self, canvas: tk.Canvas, draw_area: GUI.Box) -> TkTag:
+        pos = GUI.Position((draw_area.right - draw_area.left - self.thumbnail.width()) // 2,\
+                       draw_area.top + (draw_area.bottom - draw_area.top - self.thumbnail.height()) // 2)
+        canvas.create_image(tuple(pos), image=self.thumbnail._value, anchor=NW)
+
+    def getDimensions(self) -> GUI.Dimensions:
+        return GUI.Dimensions(-1, self.thumbnail.height())
+    
+    def onUpdate(self, canvas: tk.Canvas, event: Event) -> None:
+        pass
+
+
+class Aplication(tk.Tk):
+    def __init__(self, geometry: str, screenName: Optional[str] = None, baseName: Optional[str] = None, className: Optional[str] = "Tk", useTk: Optional[bool] = True, sync: Optional[bool] = False, use: Optional[str] = None) -> None:
+        super().__init__(screenName=screenName, baseName=baseName, className=className, useTk=useTk, sync=sync, use=use)
+        self.geometry(geometry)
+        self.dimensions = GUI.Dimensions(tuple([int(i) for i in geometry.split('x')]))
+        self.minsize(self.dimensions.width, self.dimensions.height)
+        width = int(geometry.split('x')[0])
+
+        self.sidebar = GUI.SideBar(150, 65)
+        self.sidebar.setFootImage(API.ImageOps.PILtoTkImage(GUI.Assets.settings.value, 0.95))
+        self.sidebar_amount = 0
+        
+        self.videos: List[Video] = []
+
+        self.search: Dict[tk.Frame, GUI.Search]= {'Container': tk.Frame(self), 'Search': None}
+        self.search['Container'].place(x=150, y=0, width=width-150, relheight=1)
+        self.search['Search'] = GUI.Search(self.search['Container'])
+        self.search['Search'].place(x=0, y=0, relheight=1, relwidth=1)
+
+        temp = lambda qe,e: threading.Thread(name="OnSubmit", target=self.onSubmit, args=(qe,e)).start()
+        self.search['Search'].head.setOnSubmit(temp)
+        self.bind("<Configure>", self.onResize)
+
+
+    def onSubmit(self, entry: GUI.QueryEntry, event: Event):
+        search = self.search['Search']
+        search.content.clear()
+
+        if not entry._place_holder:
+            try:
+                vid = API.parseURL(entry.entry.get())
+            except Exception as e:
+                print(e)
+                return
+            
+            videos = API.parseVideos(vid)
+            temp = lambda v,e: threading.Thread(name="OnClickVideo", target=self.onClick, args=(v,e)).start()
+            API.populate(videos, self.videos, Video, search.content.addItem, 6, bind=(["<1>"], temp))
+
+    def onResize(self, event: Event):
+        if(event.widget == self and
+           (self.dimensions.width != event.width or self.dimensions.height != event.height)):
+            new_width = event.width - 150
+            self.search['Container'].place_configure(width=new_width)
+            self.dimensions = GUI.Dimensions(event.width, event.height)
+
+    def onClick(self, video: Video, event: Event):
+        dm = DownloadMenu(self, video.streams)
+        temp = lambda b,t,s,v=video: threading.Thread(name="OnDownload", target=self.onDMClick, args=(b,t,s,v)).start()
+        dm.setOnClick(temp)
+
+    def onDMClick(self, btn: tk.Button, type: str, streams: pytube.StreamQuery, video: Video):
+        if type == 'Audio':
+                streams.filter(abr=btn['text']).first().download("./../music")
+        elif type == 'Video':
+            streams = streams.filter(res=btn['text'])
+            stream = streams.get_highest_resolution()
+            if stream is None:
+                stream = streams.first()
+            stream.download("./../videos")
+        self.sidebar.getBase().addItem(Miniature(video), self.sidebar_amount)
+        self.sidebar_amount += 1
+
+
+def main():
+    app = Aplication(geometry="800x800", className="App", sync=True)
+
+    app.mainloop()
 
 if __name__ == '__main__':
     main()
